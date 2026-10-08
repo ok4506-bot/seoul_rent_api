@@ -211,6 +211,8 @@ function renderRank() {
   $("rankTitle").textContent = byDong ? "법정동별 ㎡당 평균 매매가" : "단지·건물별 ㎡당 평균 매매가";
   $("rankSub").textContent = byDong ? "거래가 많은 순 상위 15곳 · 막대 끝 숫자는 거래 건수" : "거래가 많은 순 상위 12곳 · 막대 끝 숫자는 거래 건수";
   const ax = axisStyle(), color = cssVar("--series-1");
+  $("rank").style.height = `${Math.max(160, top.length * 28 + 50)}px`; // 항목 수에 맞춰 높이 조절
+  charts.rank.resize();
   charts.rank.setOption({
     grid: { left: 8, right: 70, top: 6, bottom: 24, containLabel: true },
     tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "shadow" },
