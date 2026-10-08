@@ -88,6 +88,24 @@ export function won(man, suffix = "원") {
 export const eok = (man) => (ok(man) ? `${nf1.format(man / 10000)}억` : "–");
 export const pct = (v, digits = 1) => (ok(v) ? `${v > 0 ? "+" : ""}${v.toFixed(digits)}%` : "–");
 export const arrow = (v) => (!ok(v) ? "" : v > 0.05 ? "▲" : v < -0.05 ? "▼" : "■");
+/** 이번 달·지난 달 계약은 신고 기한(계약 후 30일)이 남아 있어 아직 덜 집계됨 */
+export function isRecentMonth(key) {
+  const now = new Date(Date.now() + 9 * 3600e3); // KST
+  const cur = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  const k = Number(key.slice(0, 4)) * 12 + Number(key.slice(4, 6)) - 1;
+  return cur - k <= 1;
+}
+/** 추이선을 확정 구간(실선)과 최근 집계 중 구간(점선)으로 나눔 */
+export function splitProvisional(keys, values) {
+  const firstRecent = keys.findIndex(isRecentMonth);
+  if (firstRecent < 0) return { solid: values, dashed: values.map(() => null) };
+  const join = Math.max(0, firstRecent - 1);
+  return {
+    solid: values.map((v, i) => (i < firstRecent ? v : null)),
+    dashed: values.map((v, i) => (i >= join ? v : null)),
+  };
+}
+export const RECENT_NOTE = "최근 달 · 신고 기한(계약 후 30일)이 남아 아직 집계 중";
 export const ym = (key) => `${key.slice(0, 4)}.${key.slice(4, 6)}`;
 export const ymKo = (key) => `${key.slice(0, 4)}년 ${Number(key.slice(4, 6))}월`;
 export const fmtDay = (d) => (d && d.length === 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}` : d || "–");

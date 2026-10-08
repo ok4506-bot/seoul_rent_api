@@ -1,6 +1,6 @@
 // 실거래가 창: /api/trade (서버 프록시) → 매매 실거래가 요약·분포·순위·목록
 import {
-  PYEONG, axisStyle, change, channel, cssVar, eok, esc, fetchAll, fillDongSelect, fillGuSelect, fmtDay,
+  PYEONG, RECENT_NOTE, axisStyle, isRecentMonth, splitProvisional, change, channel, cssVar, eok, esc, fetchAll, fillDongSelect, fillGuSelect, fmtDay,
   initTheme, loadDistricts, mean, median, nf, nf1, ok, readParams, setStatus, sortableTable, tooltipStyle,
   won, writeParams, ym, ymKo,
 } from "./common.js";
@@ -175,23 +175,29 @@ function renderTrend() {
   const ax = axisStyle(), color = cssVar("--series-1"), muted = cssVar("--muted");
   const mon = monthly();
   const xs = mon.map((d) => ym(d.k));
+  const line = splitProvisional(mon.map((d) => d.k), mon.map((d) => Math.round(d.v)));
   charts.trend.setOption({
     grid: { left: 56, right: 16, top: 12, bottom: 26 },
-    tooltip: { ...tooltipStyle(), trigger: "axis", formatter: (ps) => { const d = mon[ps[0].dataIndex]; const prev = mon[ps[0].dataIndex - 1];
+    tooltip: { ...tooltipStyle(), trigger: "axis", formatter: (ps) => { const i = (ps.find((x) => x.value != null) || ps[0]).dataIndex; const d = mon[i]; const prev = mon[i - 1];
       const ch = prev ? change(d.v, prev.v) : null;
-      return `${ymKo(d.k)}<br>㎡당 <b>${nf.format(Math.round(d.v))}</b>만원${ch == null ? "" : ` (전월 ${ch > 0 ? "+" : ""}${ch.toFixed(1)}%)`}<br><span style="color:${muted}">${nf.format(d.n)}건</span>`; } },
+      return `${ymKo(d.k)}<br>㎡당 <b>${nf.format(Math.round(d.v))}</b>만원${ch == null ? "" : ` (전월 ${ch > 0 ? "+" : ""}${ch.toFixed(1)}%)`}<br><span style="color:${muted}">${nf.format(d.n)}건${isRecentMonth(d.k) ? `<br>${RECENT_NOTE}` : ""}</span>`; } },
     xAxis: { type: "category", data: xs, boundaryGap: false, ...ax, splitLine: { show: false } },
     yAxis: { type: "value", scale: true, ...ax, axisLabel: { ...ax.axisLabel, formatter: (v) => nf.format(v) } },
-    series: [{ type: "line", data: mon.map((d) => Math.round(d.v)), smooth: 0.25, symbol: "circle", symbolSize: 8,
+    series: [{ type: "line", data: line.solid, smooth: 0.25, connectNulls: true, symbol: "circle", symbolSize: 8,
       lineStyle: { width: 2, color }, itemStyle: { color, borderColor: cssVar("--surface"), borderWidth: 2 },
-      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "33" }, { offset: 1, color: color + "00" }]) } }],
+      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "33" }, { offset: 1, color: color + "00" }]) } },
+    { type: "line", data: line.dashed, smooth: 0.25, connectNulls: true, symbol: "emptyCircle", symbolSize: 7,
+      lineStyle: { width: 2, color, type: [4, 4] }, itemStyle: { color, borderColor: color } }],
   }, true);
   charts.counts.setOption({
     grid: { left: 56, right: 16, top: 8, bottom: 26 },
-    tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "shadow" }, formatter: (ps) => `${ymKo(mon[ps[0].dataIndex].k)}<br>거래 <b>${nf.format(ps[0].value)}</b>건` },
+    tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "shadow" }, formatter: (ps) => `${ymKo(mon[ps[0].dataIndex].k)}<br>거래 <b>${nf.format(ps[0].value)}</b>건${isRecentMonth(mon[ps[0].dataIndex].k) ? `<br><span style="color:${muted}">${RECENT_NOTE}</span>` : ""}` },
     xAxis: { type: "category", data: xs, ...ax, splitLine: { show: false } },
     yAxis: { type: "value", ...ax, splitNumber: 3 },
-    series: [{ type: "bar", barMaxWidth: 18, data: mon.map((d) => d.n), itemStyle: { color, opacity: 0.85, borderRadius: [4, 4, 0, 0] } }],
+    series: [{ type: "bar", barMaxWidth: 18, data: mon.map((d) => {
+      const recent = isRecentMonth(d.k);
+      return { value: d.n, itemStyle: { color, opacity: recent ? 0.38 : 0.85, borderRadius: [4, 4, 0, 0], borderType: "dashed", borderColor: recent ? color : "transparent", borderWidth: recent ? 1 : 0 } };
+    }) }],
   }, true);
 }
 

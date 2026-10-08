@@ -1,6 +1,6 @@
 // 메인 보드: 자치구·동·주택유형 선택 → /api/rent (서버 프록시) → 평균 전세가 계산 + 3D·시계열 시각화
 import {
-  AREA_BANDS, PYEONG, YEARS, arrow, axisStyle, bandIndex, change, channel, cssVar, esc, fetchAll,
+  AREA_BANDS, PYEONG, RECENT_NOTE, YEARS, arrow, isRecentMonth, splitProvisional, axisStyle, bandIndex, change, channel, cssVar, esc, fetchAll,
   fillDongSelect, fillGuSelect, fmtDay, initTheme, loadDistricts, mean, median, nf, nf1, nf2, ok, pct,
   readParams, seqRamp, setStatus, tooltipStyle, won, writeParams, ym, ymKo,
 } from "./common.js";
@@ -86,7 +86,7 @@ function setRadio(name, value) {
 function syncScopeHint() {
   el.scopeHint.textContent = el.dong.value
     ? "법정동을 골라 필요한 자료만 빠르게 받아옵니다."
-    : "자치구 전체는 자료가 많아 여러 번 나눠 받습니다 (수십 초 걸릴 수 있음).";
+    : "자치구 전체는 자료가 많아 몇 초 더 걸립니다.";
 }
 function saveUrl() {
   writeParams({ gu: state.gu, dong: state.dong, type: state.type, years: state.years.join(","), metric: state.metric, axis: state.axis });
@@ -100,7 +100,6 @@ async function load() {
   state.dong = el.dong.value;
   state.type = document.querySelector('input[name="type"]:checked').value;
   state.years = years;
-  if (!state.dong && state.axis !== "dong") { /* 동 전체일 때는 법정동 축 사용 가능 */ }
   if (state.dong && state.axis === "dong") { state.axis = "band"; setRadio("axis", "band"); }
   el.axisSeg.querySelector('input[value="dong"]').disabled = !!state.dong;
   saveUrl();
@@ -342,6 +341,8 @@ function renderTrend() {
   const xs = m.months.map(ym);
   const f = state.focus;
   const ax = axisStyle();
+  const line = splitProvisional(m.months, mx.monthly.map((d) => (d.v == null ? null : +d.v.toFixed(3))));
+  $("countTitle").textContent = state.metric === "jeonse" ? "월별 전세 계약 건수" : "월별 월세 계약 건수";
   const mark = f == null ? undefined : {
     symbol: "none", silent: true, animation: false,
     lineStyle: { color: cssVar("--ink-2"), type: "dashed", width: 1 },
@@ -352,28 +353,36 @@ function renderTrend() {
     animationDuration: 400,
     grid: { left: 52, right: 16, top: 16, bottom: 28 },
     tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "line", lineStyle: { color: muted } },
-      formatter: (ps) => { const p = ps[0]; const n = mx.monthly[p.dataIndex].n;
-        return `${ymKo(m.months[p.dataIndex])}<br>${meta.name} <b>${ok(p.value) ? meta.fmt(p.value) : "–"}</b> ${meta.unit}<br><span style="color:${muted}">${nf.format(n)}건</span>`; } },
+      formatter: (ps) => { const p = ps.find((x) => x.value != null) || ps[0]; const n = mx.monthly[p.dataIndex].n;
+        return `${ymKo(m.months[p.dataIndex])}<br>${meta.name} <b>${ok(p.value) ? meta.fmt(p.value) : "–"}</b> ${meta.unit}<br><span style="color:${muted}">${nf.format(n)}건${isRecentMonth(m.months[p.dataIndex]) ? `<br>${RECENT_NOTE}` : ""}</span>`; } },
     xAxis: { type: "category", data: xs, boundaryGap: false, ...ax, splitLine: { show: false } },
     yAxis: { type: "value", scale: true, ...ax, axisLabel: { ...ax.axisLabel, formatter: (v) => meta.fmt(v) } },
     series: [{
-      type: "line", data: mx.monthly.map((d) => (d.v == null ? null : +d.v.toFixed(3))), smooth: 0.25,
+      type: "line", data: line.solid, smooth: 0.25, connectNulls: true,
       symbol: "circle", symbolSize: 8, showSymbol: m.months.length <= 14, lineStyle: { width: 2, color },
       itemStyle: { color, borderColor: cssVar("--surface"), borderWidth: 2 },
       areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + "33" }, { offset: 1, color: color + "00" }]) },
       markLine: mark,
+    }, {
+      // 최근 1–2개월: 신고 기한이 남아 값이 바뀔 수 있으므로 점선
+      type: "line", data: line.dashed, smooth: 0.25, connectNulls: true, symbol: "emptyCircle", symbolSize: 7,
+      showSymbol: true, lineStyle: { width: 2, color, type: [4, 4] }, itemStyle: { color, borderColor: color },
     }],
   }, true);
 
   charts.counts.setOption({
     animationDuration: 400,
     grid: { left: 52, right: 16, top: 8, bottom: 28 },
-    tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "shadow" }, formatter: (ps) => `${ymKo(m.months[ps[0].dataIndex])}<br>계약 <b>${nf.format(ps[0].value)}</b>건` },
+    tooltip: { ...tooltipStyle(), trigger: "axis", axisPointer: { type: "shadow" }, formatter: (ps) => `${ymKo(m.months[ps[0].dataIndex])}<br>계약 <b>${nf.format(ps[0].value)}</b>건${isRecentMonth(m.months[ps[0].dataIndex]) ? `<br><span style="color:${muted}">${RECENT_NOTE}</span>` : ""}` },
     xAxis: { type: "category", data: xs, ...ax, splitLine: { show: false } },
     yAxis: { type: "value", ...ax, splitNumber: 3, axisLabel: { ...ax.axisLabel, formatter: (v) => nf.format(v) } },
     series: [{
       type: "bar", barMaxWidth: 18,
-      data: mx.monthly.map((d, i) => ({ value: d.n, itemStyle: { color, opacity: f == null || i === f ? 0.9 : 0.35, borderRadius: [4, 4, 0, 0] } })),
+      data: mx.monthly.map((d, i) => {
+        const recent = isRecentMonth(m.months[i]);
+        const base = f == null || i === f ? 0.9 : 0.35;
+        return { value: d.n, itemStyle: { color, opacity: recent ? base * 0.45 : base, borderRadius: [4, 4, 0, 0], borderType: "dashed", borderColor: recent ? color : "transparent", borderWidth: recent ? 1 : 0 } };
+      }),
     }],
   }, true);
 }
