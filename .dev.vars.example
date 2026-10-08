@@ -1,0 +1,6 @@
+# 로컬 개발용 비밀값 — 이 파일을 .dev.vars 로 복사해 값을 채우세요. (.dev.vars 는 git에 올라가지 않습니다)
+SEOUL_API_KEY=여기에_서울열린데이터광장_인증키
+
+# (선택) 키 없이 모의 서버로 점검할 때만:
+# SEOUL_API_BASE=http://127.0.0.1:8099
+# SEOUL_API_KEY=MOCKKEY

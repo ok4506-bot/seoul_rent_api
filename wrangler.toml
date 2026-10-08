@@ -1,0 +1,7 @@
+# Cloudflare Pages 설정 (정적 파일: public/, 서버 함수: functions/)
+# SEOUL_API_KEY 는 여기에 쓰지 말고 Cloudflare 대시보드 Secret 또는
+#   npx wrangler pages secret put SEOUL_API_KEY --project-name seoul-rent-api
+# 로 등록합니다.
+name = "seoul-rent-api"
+pages_build_output_dir = "./public"
+compatibility_date = "2025-10-01"

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>서울 매매 실거래가</title>
+  <meta name="description" content="서울 열린데이터광장 부동산 실거래가 정보를 한눈에 보는 창" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='21' r='4' fill='%2386b6ef'/%3E%3Ccircle cx='17' cy='13' r='4' fill='%233987e5'/%3E%3Ccircle cx='25' cy='7' r='4' fill='%23184f95'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <h1>매매 실거래가 한눈에</h1>
+        <p>서울 열린데이터광장 「부동산 실거래가 정보」 실시간 조회 · 해제(취소)된 거래 제외</p>
+      </div>
+      <div class="top-actions">
+        <label class="toggle" title="메인 보드에서 조건을 바꾸면 이 창도 따라 바뀝니다"><input type="checkbox" id="sync" checked /> 메인 보드와 연동</label>
+        <a class="btn" href="./" id="backLink">← 전월세 3D 보드</a>
+        <button class="btn icon" id="themeBtn" type="button" aria-label="화면 테마 전환">☾</button>
+      </div>
+    </header>
+
+    <form class="filters" id="filters" autocomplete="off">
+      <label class="field"><span>자치구</span><select id="gu" required></select></label>
+      <label class="field"><span>법정동</span><select id="dong"></select></label>
+      <div class="field">
+        <span id="typeLabel">주택유형</span>
+        <div class="seg" role="radiogroup" aria-labelledby="typeLabel">
+          <label><input type="radio" name="type" value="" checked /><span>전체</span></label>
+          <label><input type="radio" name="type" value="아파트" /><span>아파트</span></label>
+          <label><input type="radio" name="type" value="연립다세대" /><span>연립다세대</span></label>
+          <label><input type="radio" name="type" value="오피스텔" /><span>오피스텔</span></label>
+          <label><input type="radio" name="type" value="단독다가구" /><span>단독다가구</span></label>
+        </div>
+      </div>
+      <label class="field"><span>접수연도</span>
+        <select id="year"><option>2026</option><option>2025</option><option>2024</option></select>
+      </label>
+      <div class="field grow"><span class="hint" id="jpmHint">&nbsp;</span></div>
+      <button class="btn primary" id="go" type="submit">조회</button>
+    </form>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <section class="kpis" aria-label="실거래 핵심 지표">
+      <div class="kpi hero">
+        <div class="label" id="kAvgLabel">평균 거래가</div>
+        <div class="value" id="kAvg">–</div>
+        <div class="sub" id="kAvgSub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">㎡당 평균 매매가</div>
+        <div class="value" id="kM2">–</div>
+        <div class="sub" id="kM2Sub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">거래 건수</div>
+        <div class="value" id="kN">–</div>
+        <div class="sub" id="kNSub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">전세가율 (㎡당)</div>
+        <div class="value" id="kRatio">–</div>
+        <div class="sub" id="kRatioSub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">최고가 거래</div>
+        <div class="value" id="kTop">–</div>
+        <div class="sub" id="kTopSub">&nbsp;</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>면적 × 거래가</h2>
+            <p>점 하나가 거래 1건 · 색·모양은 주택유형 · 휠로 확대, 드래그로 이동</p>
+          </div>
+        </div>
+        <div id="scatter" class="chart h420"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>월별 ㎡당 평균 매매가</h2>
+            <p>계약일 기준</p>
+          </div>
+        </div>
+        <div id="trend" class="chart h200"></div>
+        <div class="card-head" style="margin:6px 0 0"><div><h2 style="font-size:13px">월별 거래 건수</h2></div></div>
+        <div id="counts" class="chart h200"></div>
+      </article>
+
+      <article class="card span2">
+        <div class="card-head">
+          <div>
+            <h2 id="rankTitle">법정동별 ㎡당 평균 매매가</h2>
+            <p id="rankSub">거래가 많은 순 상위 15곳</p>
+          </div>
+        </div>
+        <div id="rank" class="chart h360"></div>
+      </article>
+
+      <article class="card span2">
+        <div class="card-head">
+          <div>
+            <h2>거래 목록</h2>
+            <p id="listSub">머리글을 눌러 정렬 · 최대 300건 표시</p>
+          </div>
+          <div class="card-tools">
+            <input type="search" id="q" placeholder="건물명·법정동 검색" aria-label="건물명 또는 법정동 검색" />
+          </div>
+        </div>
+        <div class="table-wrap" style="max-height:520px">
+          <table id="list">
+            <thead><tr>
+              <th data-key="day">계약일</th><th data-key="dong">법정동</th><th data-key="bldg">건물명</th><th data-key="usage">유형</th>
+              <th data-key="area" class="num">면적(㎡)</th><th data-key="floor" class="num">층</th><th data-key="amount" class="num">거래가</th>
+              <th data-key="perM2" class="num">㎡당(만원)</th><th data-key="built" class="num">건축년도</th><th data-key="dealType">거래유형</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <footer class="foot">
+      데이터: 서울 열린데이터광장 「서울시 부동산 실거래가 정보(tbLnOpendataRtmsV)」 · 브라우저 → Cloudflare Pages Function(<code>/api/trade</code>) → 서울시 API. 인증키는 서버 측 Secret에만 저장됩니다.<br />
+      전세가율 = 메인 보드의 ㎡당 평균 전세가 ÷ 이 창의 ㎡당 평균 매매가 (같은 자치구·동·유형·연도일 때만 계산). 면적은 건물면적 기준입니다.
+    </footer>
+  </div>
+
+  <script src="vendor/echarts.min.js"></script>
+  <script type="module" src="assets/trade.js"></script>
+</body>
+</html>

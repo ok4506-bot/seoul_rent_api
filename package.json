@@ -1,0 +1,18 @@
+{
+  "name": "seoul-rent-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "서울 열린데이터광장 전월세가·실거래가 API를 Cloudflare Pages Functions로 프록시하는 3D 대시보드",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name seoul-rent-api",
+    "vendor": "node scripts/vendor.mjs",
+    "mock": "node scripts/mock-seoul-api.mjs"
+  },
+  "devDependencies": {
+    "echarts": "6.1.0",
+    "echarts-gl": "2.1.0",
+    "wrangler": "^4.148.0"
+  }
+}

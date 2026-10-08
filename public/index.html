@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>서울 전월세 3D 보드</title>
+  <meta name="description" content="서울 열린데이터광장 전월세가 정보를 Cloudflare Pages Function으로 실시간 조회해 면적당 전월세가를 3D·시계열로 보여 주는 대시보드" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='14' width='6' height='15' rx='1.5' fill='%2386b6ef'/%3E%3Crect x='13' y='8' width='6' height='21' rx='1.5' fill='%233987e5'/%3E%3Crect x='23' y='3' width='6' height='26' rx='1.5' fill='%23184f95'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <h1>서울 전월세 3D 보드</h1>
+        <p>서울 열린데이터광장 「부동산 전월세가 정보」 실시간 조회 · 면적당 전월세가의 월별 변화</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="openTrade" type="button" title="같은 조건의 매매 실거래가를 새 창에서 엽니다">실거래가 창 열기 ↗</button>
+        <button class="btn icon" id="themeBtn" type="button" aria-label="화면 테마 전환">☾</button>
+      </div>
+    </header>
+
+    <form class="filters" id="filters" autocomplete="off">
+      <label class="field">
+        <span>자치구</span>
+        <select id="gu" name="gu" required></select>
+      </label>
+      <label class="field">
+        <span>법정동</span>
+        <select id="dong" name="dong"></select>
+      </label>
+      <div class="field">
+        <span id="typeLabel">주택유형</span>
+        <div class="seg" role="radiogroup" aria-labelledby="typeLabel" id="types">
+          <label><input type="radio" name="type" value="" checked /><span>전체</span></label>
+          <label><input type="radio" name="type" value="아파트" /><span>아파트</span></label>
+          <label><input type="radio" name="type" value="연립다세대" /><span>연립다세대</span></label>
+          <label><input type="radio" name="type" value="오피스텔" /><span>오피스텔</span></label>
+          <label><input type="radio" name="type" value="단독다가구" /><span>단독다가구</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <span id="yearLabel">접수연도</span>
+        <div class="seg" aria-labelledby="yearLabel" id="years">
+          <label><input type="checkbox" name="year" value="2024" /><span>2024</span></label>
+          <label><input type="checkbox" name="year" value="2025" /><span>2025</span></label>
+          <label><input type="checkbox" name="year" value="2026" checked /><span>2026</span></label>
+        </div>
+      </div>
+      <div class="field grow">
+        <span class="hint" id="scopeHint">법정동을 고르면 필요한 자료만 빠르게 받아옵니다.</span>
+      </div>
+      <button class="btn primary" id="go" type="submit">조회</button>
+    </form>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <section class="kpis" aria-label="핵심 지표">
+      <div class="kpi hero">
+        <div class="label" id="kJeonseLabel">평균 전세가</div>
+        <div class="value" id="kJeonse">–</div>
+        <div class="sub" id="kJeonseSub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">㎡당 평균 전세가</div>
+        <div class="value" id="kJeonseM2">–</div>
+        <div class="sub" id="kJeonseM2Sub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">평균 월세</div>
+        <div class="value" id="kWolse">–</div>
+        <div class="sub" id="kWolseSub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">㎡당 평균 월세</div>
+        <div class="value" id="kWolseM2">–</div>
+        <div class="sub" id="kWolseM2Sub">&nbsp;</div>
+      </div>
+      <div class="kpi">
+        <div class="label">전세 비중</div>
+        <div class="value" id="kShare">–</div>
+        <div class="sub" id="kShareSub">&nbsp;</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2 id="boardTitle">면적대 × 계약월 · ㎡당 전세 보증금</h2>
+            <p id="boardSub">막대 높이·색 = ㎡당 평균값. 드래그해 회전, 휠로 확대합니다.</p>
+          </div>
+          <div class="card-tools">
+            <div class="seg" role="radiogroup" aria-label="지표">
+              <label><input type="radio" name="metric" value="jeonse" checked /><span>전세 ㎡당</span></label>
+              <label><input type="radio" name="metric" value="wolse" /><span>월세 ㎡당</span></label>
+            </div>
+            <div class="seg" role="radiogroup" aria-label="가로축" id="axisSeg">
+              <label><input type="radio" name="axis" value="band" checked /><span>면적대</span></label>
+              <label><input type="radio" name="axis" value="dong" /><span>법정동</span></label>
+            </div>
+            <label class="toggle"><input type="checkbox" id="rotate" /> 자동 회전</label>
+          </div>
+        </div>
+        <div id="chart3d" class="chart" role="img" aria-label="면적대와 계약월에 따른 ㎡당 전월세가 3D 막대 그래프"></div>
+        <div class="timeline">
+          <button class="btn icon" id="play" type="button" aria-label="월별 재생">▶</button>
+          <input type="range" id="month" min="0" max="0" value="0" aria-label="계약월 선택" />
+          <div class="month" id="monthLabel">–</div>
+          <button class="btn" id="allMonths" type="button" title="모든 달을 같은 밝기로 보기">전체</button>
+        </div>
+        <div class="snapshot" id="snapshot" aria-live="polite"></div>
+      </article>
+
+      <div class="stack">
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2 id="trendTitle">월별 ㎡당 전세 보증금</h2>
+              <p>계약일 기준 월평균 · 세로선은 3D 보드에서 고른 달</p>
+            </div>
+          </div>
+          <div id="trend" class="chart h300"></div>
+          <div class="card-head" style="margin:6px 0 0">
+            <div><h2 style="font-size:13px">월별 계약 건수</h2></div>
+          </div>
+          <div id="counts" class="chart h200"></div>
+          <details class="data-table">
+            <summary>월별 수치 표로 보기</summary>
+            <div class="table-wrap" style="max-height:260px;margin-top:8px">
+              <table id="monthTable"><thead></thead><tbody></tbody></table>
+            </div>
+          </details>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid lower">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>면적대별 요약</h2>
+            <p id="bandSub">가장 최근 접수연도 기준</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="bandTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>최근 계약</h2>
+            <p>계약일 최신순 40건</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="recentTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </article>
+    </section>
+
+    <footer class="foot">
+      데이터: 서울 열린데이터광장 「서울시 부동산 전월세가 정보(tbLnOpendataRentV)」 · 브라우저 → Cloudflare Pages Function(<code>/api/rent</code>) → 서울시 API 순서로 조회하며, 인증키(<code>SEOUL_API_KEY</code>)는 서버 측 Secret에만 저장됩니다.<br />
+      ㎡당 가격은 계약 1건마다 (보증금 또는 월세 ÷ 임대면적)을 구한 뒤 평균한 값입니다. 월별 추이는 계약일, 상단 지표는 가장 최근 접수연도 기준입니다. 서울시 OpenAPI는 최근 3개 접수연도(2024–2026)만 제공합니다.
+    </footer>
+  </div>
+
+  <script src="vendor/echarts.min.js"></script>
+  <script src="vendor/echarts-gl.min.js"></script>
+  <script type="module" src="assets/board.js"></script>
+</body>
+</html>
